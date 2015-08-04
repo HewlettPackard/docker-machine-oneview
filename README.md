@@ -54,3 +54,4 @@ Full documentation [is available here](https://docs.docker.com/machine/).
 
 Want to hack on Machine? Please start with the [Contributing Guide](https://github.com/docker/machine/blob/master/CONTRIBUTING.md).
 
+test
