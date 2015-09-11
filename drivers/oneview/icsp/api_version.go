@@ -7,7 +7,7 @@ import (
 	"github.com/docker/machine/log"
 )
 
-// URLEndPoint ...
+// URLEndPoint .....
 type URLEndPoint string
 
 // URLEndPoint export this constant
