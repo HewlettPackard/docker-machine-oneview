@@ -2,6 +2,7 @@ package icsp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -247,8 +248,20 @@ func (s Server) GetInterfaces() (interfaces []Interface) {
 	return interfaces
 }
 
-// GetPublicIP returns the public ip interface
-// usually called after an os build plan is applied
+// GetInterfaceName get the name of the interface from the mac address
+// this function only returns ipv4 interfaces
+func (s Server) GetInterfaceName(slotid int) (string, error) {
+	inets := s.GetInterfaces()
+	for i, inet := range inets {
+		if i == slotid {
+			return inet.Slot, nil
+		}
+	}
+	return "", errors.New("Error interface slotid not found please try another interface id.")
+}
+
+// GetPublicIPV4 returns the public ip interface
+//                 usually called after an os build plan is applied
 func (s Server) GetPublicIPV4() (string, error) {
 	var position int
 	position, inetItem := s.GetValueItem("public_ip", "server")

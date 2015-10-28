@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/docker/machine/drivers/oneview/rest"
@@ -106,11 +105,8 @@ func (c *ICSPClient) PreApplyDeploymentJobs(s Server, slotid int) error {
 	if PRE_UNPROVISIONED.Equal(s.OpswLifecycle) && S_MAINTENANCE.Equal(s.State) {
 		log.Debugf("Applying pre deployment job settings")
 		inets := s.GetInterfaces()
-		for _, inet := range inets {
-			if id, err := strconv.Atoi(inet.Slot[len(inet.Slot)-1:]); id == slotid {
-				if err != nil {
-					return err
-				}
+		for i, inet := range inets {
+			if i == slotid {
 				publicinterface = inet
 				break
 			}
@@ -165,11 +161,18 @@ func (c *ICSPClient) CustomizeServer(cs CustomizeServer) error {
 		return fmt.Errorf("Server customization failure, server serial numbers mismatch for %s.", cs.SerialNumber)
 	}
 
+	// handle getting interface name
+	intname, err := s.GetInterfaceName(cs.PublicSlotID)
+	if err != nil {
+		return err
+	}
+
 	// save the server attributes to the server
 	for k, v := range cs.ServerProperties.Values {
 		// handle sepecial custom attributes
 		// handle @server_name@ and replace for s.Name
 		v = strings.Replace(v, "@server_name@", s.Name, -1)
+		v = strings.Replace(v, "@interface@", intname, -1)
 		s.SetCustomAttribute(k, "server", v)
 	}
 

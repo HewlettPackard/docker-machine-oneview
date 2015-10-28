@@ -85,6 +85,47 @@ func TestGetInterfaces(t *testing.T) {
 	}
 }
 
+// TestGetInterfaceName implements getting the name of an interface
+func TestGetInterfaceName(t *testing.T) {
+	var (
+		d *ICSPTest
+		c *ICSPClient
+		s Server
+	)
+	if os.Getenv("ICSP_TEST_ACCEPTANCE") == "true" {
+		log.Debug("implements acceptance test for TestGetInterfaceName")
+		d, c = getTestDriverA()
+		if c == nil {
+			t.Fatalf("Failed to execute getTestDriver() ")
+		}
+		serialNumber := d.Tc.GetTestData(d.Env, "FreeBladeSerialNumber").(string)
+		s, err := c.GetServerBySerialNumber(serialNumber)
+
+		data, err := s.GetInterfaceName(0)
+		assert.NoError(t, err, "GetInterfaceName threw error -> %s, %+v\n", err, data)
+		assert.True(t, len(data) > 0, "Failed to get a an interface name -> %+v", data)
+		log.Infof("Interface name -> %+v", data)
+
+		data, err = s.GetInterfaceName(1)
+		assert.NoError(t, err, "GetInterfaceName threw error -> %s, %+v\n", err, data)
+		assert.True(t, len(data) > 0, "Failed to get a an interface name -> %+v", data)
+		log.Infof("Interface name -> %+v", data)
+	} else {
+		log.Debug("implements unit test for TestGetInterfaceName")
+		d, c = getTestDriverU()
+		jsonServerData := d.Tc.GetTestData(d.Env, "ServerJSONString").(string)
+		log.Debugf("jsonServerData => %s", jsonServerData)
+		err := json.Unmarshal([]byte(jsonServerData), &s)
+		assert.NoError(t, err, "Unmarshal Server threw error -> %s, %+v\n", err, jsonServerData)
+
+		log.Debugf("server -> %v", s)
+
+		data, err := s.GetInterfaceName(0)
+		log.Infof("Interface Name -> %+v", data)
+		assert.True(t, len(data) > 0, "Failed to get a valid list of interfaces -> %+v", data)
+	}
+}
+
 // TestSaveServer implement save server
 func TestSaveServer(t *testing.T) {
 	var (

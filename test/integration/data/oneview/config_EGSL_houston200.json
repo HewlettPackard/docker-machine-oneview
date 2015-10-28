@@ -34,7 +34,7 @@
       "test_data": {
         "HostName": "docker_machine_test01",
         "FreeICSPSerialNumber" : "VCGHJL900C",
-        "FreeBladeSerialNumber" : "2M25090RMS",
+        "FreeBladeSerialNumber" : "VCGADVT00T",
         "FreeBladeName" : "HOUEGSL-C7000-04, bay 5",
         "FreeHostName": "houegsl-c7000-04-ilo05",
         "IcspName" : "IC04-HOUEGSL-C7000-04-5",
