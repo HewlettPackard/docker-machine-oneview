@@ -19,20 +19,21 @@ import (
 // Driver OneView driver structure
 type Driver struct {
 	*drivers.BaseDriver
-	ClientICSP     *icsp.ICSPClient
-	ClientOV       *ov.OVClient
-	IloUser        string
-	IloPassword    string
-	IloPort        int
-	OSBuildPlan    string
-	SSHUser        string
-	SSHPort        int
-	SSHPublicKey   string
-	ServerTemplate string
-	PublicSlotID   int
-	Profile        ov.ServerProfile
-	Hardware       ov.ServerHardware
-	Server         icsp.Server
+	ClientICSP           *icsp.ICSPClient
+	ClientOV             *ov.OVClient
+	IloUser              string
+	IloPassword          string
+	IloPort              int
+	OSBuildPlan          string
+	SSHUser              string
+	SSHPort              int
+	SSHPublicKey         string
+	ServerTemplate       string
+	PublicSlotID         int
+	PublicConnectionName string
+	Profile              ov.ServerProfile
+	Hardware             ov.ServerHardware
+	Server               icsp.Server
 }
 
 const (
@@ -155,9 +156,15 @@ func GetCreateFlags() []cli.Flag {
 		},
 		cli.IntFlag{
 			Name:   "oneview-public-slotid",
-			Usage:  "optional slot id of the public interface, ie; ethX where X is the id.",
+			Usage:  "Optional slot id of the public interface to use for connecting with docker.",
 			Value:  1,
 			EnvVar: "ONEVIEW_PUBLIC_SLOTID",
+		},
+		cli.StringFlag{
+			Name:   "oneview-public-connection-name",
+			Usage:  "Optional Connection name to use for public interface to connect with docker, the name can be defined in server template.  Overrides slotid option.",
+			Value:  "",
+			EnvVar: "ONEVIEW_PUBLIC_CONNECTION_NAME",
 		},
 	}
 }
@@ -212,6 +219,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.IloPort = flags.Int("oneview-ilo-port")
 
 	d.PublicSlotID = flags.Int("oneview-public-slotid")
+	d.PublicConnectionName = flags.String("oneview-public-connection-name")
 
 	d.SSHUser = flags.String("oneview-ssh-user")
 	d.SSHPort = flags.Int("oneview-ssh-port")
@@ -317,6 +325,19 @@ func (d *Driver) Create() error {
 
 	sp.Set("interface", "@interface@") // this is populated later
 
+	// Get the mac address for public Connection on server profile
+	var publicmac string
+	if d.PublicConnectionName != "" {
+		conn, err := d.Profile.GetConnectionByName(d.PublicConnectionName)
+		if err != nil {
+			return err
+		}
+		publicmac = conn.MAC.String()
+	} else {
+		publicmac = ""
+	}
+
+	// arguments for customize server
 	cs := icsp.CustomizeServer{
 		HostName:         d.MachineName,                   // machine-rack-enclosure-bay
 		SerialNumber:     d.Profile.SerialNumber.String(), // get it
@@ -326,6 +347,7 @@ func (d *Driver) Create() error {
 		IloPort:          d.IloPort,
 		OSBuildPlan:      d.OSBuildPlan,  // name of the OS build plan
 		PublicSlotID:     d.PublicSlotID, // this is the slot id of the public interface
+		PublicMAC:        publicmac,      // Server profile mac address, overrides slotid
 		ServerProperties: sp,
 	}
 	// create d.Server and apply a build plan and configure the custom attributes

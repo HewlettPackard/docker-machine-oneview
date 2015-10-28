@@ -38,6 +38,51 @@ func TestGetPublicIPV4(t *testing.T) {
 	}
 }
 
+// TestGetInterfaceFromMac verify that getting an inerface with mac address works
+func TestGetInterfaceFromMac(t *testing.T) {
+	var (
+		d *ICSPTest
+		c *ICSPClient
+		s Server
+	)
+	if os.Getenv("ICSP_TEST_ACCEPTANCE") == "true" {
+		log.Debug("implements acceptance test for TestGetInterfaceFromMac")
+		d, c = getTestDriverA()
+		if c == nil {
+			t.Fatalf("Failed to execute getTestDriver() ")
+		}
+		serialNumber := d.Tc.GetTestData(d.Env, "FreeBladeSerialNumber").(string)
+		macAddr := d.Tc.GetTestData(d.Env, "FreeMacAddr").(string)
+
+		s, err := c.GetServerBySerialNumber(serialNumber)
+		assert.NoError(t, err, "GetServerBySerialNumber threw error -> %s, %+v\n", err, serialNumber)
+
+		data, err := s.GetInterfaceFromMac(macAddr)
+		assert.NoError(t, err, "GetInterfaceFromMac threw error -> %s, %+v\n", err, data)
+		assert.Equal(t, macAddr, data.MACAddr, "Failed to get interface -> %+v", data)
+		log.Infof("Found interface -> %+v", data)
+	} else {
+		log.Debug("implements unit test for TestGetInterfaces")
+		d, c = getTestDriverU()
+		jsonServerData := d.Tc.GetTestData(d.Env, "ServerJSONString").(string)
+		log.Debugf("jsonServerData => %s", jsonServerData)
+		err := json.Unmarshal([]byte(jsonServerData), &s)
+		assert.NoError(t, err, "Unmarshal Server threw error -> %s, %+v\n", err, jsonServerData)
+
+		log.Debugf("server -> %v", s)
+
+		data := s.GetInterfaces()
+		log.Debugf("Interfaces -> %+v", data)
+		assert.True(t, len(data) > 0, "Failed to get a valid list of interfaces -> %+v", data)
+		for _, inet := range data {
+			log.Debugf("inet -> %+v", inet)
+			log.Debugf("inet ip -> %+v", inet.IPV4Addr)
+			log.Debugf("inet ip -> %+v", inet.Slot)
+			log.Infof("inet ip -> %+v", inet.MACAddr)
+		}
+	}
+}
+
 // TestGetInterfaces  verify that interfaces works
 func TestGetInterfaces(t *testing.T) {
 
@@ -85,8 +130,8 @@ func TestGetInterfaces(t *testing.T) {
 	}
 }
 
-// TestGetInterfaceName implements getting the name of an interface
-func TestGetInterfaceName(t *testing.T) {
+// TestGetInterface implements getting the name of an interface
+func TestGetInterface(t *testing.T) {
 	var (
 		d *ICSPTest
 		c *ICSPClient
@@ -101,15 +146,15 @@ func TestGetInterfaceName(t *testing.T) {
 		serialNumber := d.Tc.GetTestData(d.Env, "FreeBladeSerialNumber").(string)
 		s, err := c.GetServerBySerialNumber(serialNumber)
 
-		data, err := s.GetInterfaceName(0)
-		assert.NoError(t, err, "GetInterfaceName threw error -> %s, %+v\n", err, data)
-		assert.True(t, len(data) > 0, "Failed to get a an interface name -> %+v", data)
-		log.Infof("Interface name -> %+v", data)
+		data, err := s.GetInterface(0)
+		assert.NoError(t, err, "GetInterface threw error -> %s, %+v\n", err, data)
+		assert.True(t, len(data.Slot) > 0, "Failed to get a an interface name -> %+v", data)
+		log.Infof("Interface name -> %+v", data.Slot)
 
-		data, err = s.GetInterfaceName(1)
-		assert.NoError(t, err, "GetInterfaceName threw error -> %s, %+v\n", err, data)
-		assert.True(t, len(data) > 0, "Failed to get a an interface name -> %+v", data)
-		log.Infof("Interface name -> %+v", data)
+		data, err = s.GetInterface(1)
+		assert.NoError(t, err, "GetInterface threw error -> %s, %+v\n", err, data)
+		assert.True(t, len(data.Slot) > 0, "Failed to get a an interface name -> %+v", data)
+		log.Infof("Interface name -> %+v", data.Slot)
 	} else {
 		log.Debug("implements unit test for TestGetInterfaceName")
 		d, c = getTestDriverU()
@@ -120,9 +165,9 @@ func TestGetInterfaceName(t *testing.T) {
 
 		log.Debugf("server -> %v", s)
 
-		data, err := s.GetInterfaceName(0)
+		data, err := s.GetInterface(0)
 		log.Infof("Interface Name -> %+v", data)
-		assert.True(t, len(data) > 0, "Failed to get a valid list of interfaces -> %+v", data)
+		assert.True(t, len(data.Slot) > 0, "Failed to get a valid list of interfaces -> %+v", data)
 	}
 }
 

@@ -248,16 +248,28 @@ func (s Server) GetInterfaces() (interfaces []Interface) {
 	return interfaces
 }
 
-// GetInterfaceName get the name of the interface from the mac address
-// this function only returns ipv4 interfaces
-func (s Server) GetInterfaceName(slotid int) (string, error) {
+// GetInterface get the interface from slot location
+func (s Server) GetInterface(slotid int) (Interface, error) {
+	var interfac Interface
 	inets := s.GetInterfaces()
 	for i, inet := range inets {
 		if i == slotid {
-			return inet.Slot, nil
+			return inet, nil
 		}
 	}
-	return "", errors.New("Error interface slotid not found please try another interface id.")
+	return interfac, errors.New("Error interface slotid not found please try another interface id.")
+}
+
+// GetInterfaceFromMac get the server interface for mac address
+func (s Server) GetInterfaceFromMac(mac string) (Interface, error) {
+	var intface Interface
+	for _, ife := range s.Interfaces {
+		if strings.ToLower(ife.MACAddr) == strings.ToLower(mac) {
+			intface = ife
+			return intface, nil
+		}
+	}
+	return intface, errors.New("Error interface not found, please try a different mac address.")
 }
 
 // GetPublicIPV4 returns the public ip interface

@@ -2,6 +2,7 @@ package ov
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/docker/machine/drivers/oneview/rest"
@@ -77,6 +78,17 @@ type ServerProfile struct {
 	URI                   utils.Nstring       `json:"uri,omitempty"`                   // "uri": "/rest/server-profiles/9979b3a4-646a-4c3e-bca6-80ca0b403a93",
 	UUID                  utils.Nstring       `json:"uuid,omitempty"`                  // "uuid": "30373237-3132-4D32-3235-303930524D57",
 	WWNType               string              `json:"wwnType,omitempty"`               // "wwnType": "Physical",
+}
+
+// GetConnectionByName gets the connection from a profile with a given name
+func (s ServerProfile) GetConnectionByName(name string) (Connection, error) {
+	var connection Connection
+	for _, c := range s.Connections {
+		if c.Name == name {
+			return c, nil
+		}
+	}
+	return connection, errors.New("Error connection not found on server profile, please try a different connection name.")
 }
 
 // Clone server profile

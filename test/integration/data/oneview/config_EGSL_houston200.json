@@ -33,8 +33,10 @@
       "enabled": true,
       "test_data": {
         "HostName": "docker_machine_test01",
+        "FreePublicConnection" : "Prod_172",
         "FreeICSPSerialNumber" : "VCGHJL900C",
         "FreeBladeSerialNumber" : "VCGADVT00T",
+        "FreeMacAddr": "A6:3B:44:70:00:66",
         "FreeBladeName" : "HOUEGSL-C7000-04, bay 5",
         "FreeHostName": "houegsl-c7000-04-ilo05",
         "IcspName" : "IC04-HOUEGSL-C7000-04-5",
@@ -51,7 +53,7 @@
       },
       "expects_data": {
         "IloIPAddress":  "16.85.0.34",
-        "MACAddress": "D6:6D:EC:10:00:22",
+        "MACAddress": "D6:6D:EC:10:00:E7",
         "CurrentVersion": 200,
         "MinimumVersion": 1,
         "FakeData": "foo",

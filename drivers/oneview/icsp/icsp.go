@@ -63,6 +63,7 @@ type CustomizeServer struct {
 	OSBuildPlan      string                  // name of the OS build plan
 	ServerProperties *CustomServerAttributes // name value pairs for server custom attributes
 	PublicSlotID     int                     // the public interface that will be used to get public ipaddress
+	PublicMAC        string                  // public connection name, overrides PublicSlotID
 }
 
 // PostApplyDeploymentJobs - post deployment task to update custom attributes with
@@ -100,17 +101,9 @@ func (c *ICSPClient) PostApplyDeploymentJobs(jt *JobTask, s Server, properties [
 //  public_interface can only be called when the server is in maintenance mode, all others
 //   simply fall out
 //TODO: a workaround to figuring out how to bubble up public ip address information from the os to icsp after os build plan provisioning
-func (c *ICSPClient) PreApplyDeploymentJobs(s Server, slotid int) error {
-	var publicinterface Interface
+func (c *ICSPClient) PreApplyDeploymentJobs(s Server, publicinterface Interface) error {
 	if PRE_UNPROVISIONED.Equal(s.OpswLifecycle) && S_MAINTENANCE.Equal(s.State) {
 		log.Debugf("Applying pre deployment job settings")
-		inets := s.GetInterfaces()
-		for i, inet := range inets {
-			if i == slotid {
-				publicinterface = inet
-				break
-			}
-		}
 		// json version of the publicinterface
 		publicinterfacejson, err := json.Marshal(publicinterface)
 		if err != nil {
@@ -162,9 +155,17 @@ func (c *ICSPClient) CustomizeServer(cs CustomizeServer) error {
 	}
 
 	// handle getting interface name
-	intname, err := s.GetInterfaceName(cs.PublicSlotID)
-	if err != nil {
-		return err
+	var publicinterface Interface
+	if cs.PublicMAC != "" {
+		publicinterface, err = s.GetInterfaceFromMac(cs.PublicMAC)
+		if err != nil {
+			return err
+		}
+	} else {
+		publicinterface, err = s.GetInterface(cs.PublicSlotID)
+		if err != nil {
+			return err
+		}
 	}
 
 	// save the server attributes to the server
@@ -172,23 +173,23 @@ func (c *ICSPClient) CustomizeServer(cs CustomizeServer) error {
 		// handle sepecial custom attributes
 		// handle @server_name@ and replace for s.Name
 		v = strings.Replace(v, "@server_name@", s.Name, -1)
-		v = strings.Replace(v, "@interface@", intname, -1)
+		v = strings.Replace(v, "@interface@", publicinterface.Slot, -1)
 		s.SetCustomAttribute(k, "server", v)
 	}
 
 	// save it
-	new_server, err := c.SaveServer(s)
+	newserver, err := c.SaveServer(s)
 	if err != nil {
 		return err
 	}
 
 	// call to capture the public_interface attribute
-	if err := c.PreApplyDeploymentJobs(new_server, cs.PublicSlotID); err != nil {
+	if err := c.PreApplyDeploymentJobs(newserver, publicinterface); err != nil {
 		return err
 	}
 
 	// apply the build Plan
-	jt, err := c.ApplyDeploymentJobs(cs.OSBuildPlan, new_server)
+	jt, err := c.ApplyDeploymentJobs(cs.OSBuildPlan, newserver)
 	if err != nil {
 		return err
 	}
@@ -197,5 +198,5 @@ func (c *ICSPClient) CustomizeServer(cs CustomizeServer) error {
 	// TODO: this needs to be evaluated on usefull ness and proper way to pass up additional deployment information back to the server in icsp
 	var findprops []string
 	findprops = append(findprops, "public_ip")
-	return c.PostApplyDeploymentJobs(jt, new_server, findprops)
+	return c.PostApplyDeploymentJobs(jt, newserver, findprops)
 }

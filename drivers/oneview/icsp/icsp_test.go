@@ -164,7 +164,8 @@ func TestPreApplyDeploymentJobs(t *testing.T) {
 		log.Infof("server state -> %+v", s.State)
 		assert.True(t, S_MAINTENANCE.Equal(s.State), "server should be in maintenance mode")
 
-		err = c.PreApplyDeploymentJobs(s, 1) // responsible for configuring the Pulbic IP CustomAttributes
+		pubinet, err := s.GetInterface(1)
+		err = c.PreApplyDeploymentJobs(s, pubinet) // responsible for configuring the Pulbic IP CustomAttributes
 		assert.NoError(t, err, "ApplyDeploymentJobs threw error -> %+v, %+v", err, s)
 
 		// verify that the server attribute was saved by getting the server again and checking the value
