@@ -101,6 +101,35 @@ func TestGetProfileByName(t *testing.T) {
 	}
 }
 
+// TestGetProfileConnectionByName verify functionality
+func TestGetConnectionByName(t *testing.T) {
+	var (
+		d        *OVTest
+		c        *OVClient
+		testname string
+	)
+	if os.Getenv("ONEVIEW_TEST_ACCEPTANCE") == "true" {
+		d, c = getTestDriverA()
+		testname = d.Tc.GetTestData(d.Env, "ServerProfileName").(string)
+		pubcname := d.Tc.GetTestData(d.Env, "FreePublicConnection").(string)
+		expectsmac := d.Tc.GetExpectsData(d.Env, "MACAddress").(string)
+		if c == nil {
+			t.Fatalf("Failed to execute getTestDriver() ")
+		}
+		profile, err := c.GetProfileByName(testname)
+		assert.NoError(t, err, "GetProfileByName threw error -> %s", err)
+
+		for _, c := range profile.Connections {
+			log.Debugf("connection -> %d %s %s %s", c.ID, c.Name, c.MAC, c.MacType)
+		}
+
+		connection, err := profile.GetConnectionByName(pubcname)
+		log.Debugf("Got connection -> %+v", connection)
+		assert.NoError(t, err, "GetConnectionByName threw error -> %s", err)
+		assert.Equal(t, expectsmac, connection.MAC.String(), "GetConnectionByName failed to get connection %+v", err, connection)
+	}
+}
+
 // TestGetProfileNameBySN
 // Acceptance test ->
 // /rest/server-profiles
