@@ -5,6 +5,8 @@ GO_PACKAGES := $(GO_PACKAGES) github.com/stretchr/testify/assert
 GO_PACKAGES := $(GO_PACKAGES) golang.org/x/crypto/ssh
 GO_PACKAGES := $(GO_PACKAGES) github.com/Sirupsen/logrus
 GO_PACKAGES := $(GO_PACKAGES) github.com/Azure/go-ansiterm
+GO_PACKAGES := $(GO_PACKAGES) github.com/davecgh/go-spew/spew
+GO_PACKAGES := $(GO_PACKAGES) github.com/pmezard/go-difflib/difflib
 
 GO15VENDOREXPERIMENT := 1
 
@@ -60,9 +62,6 @@ godeps-clean: vendor-clean
 # setup a fresh GOPATH directory with what would be needed to build
 # TODO: clean dependencies on oneview
 godeps-init: godeps-clean godeps-init-oneview
-		@echo "Pulling required packages into $(GOPATH)"
-		mkdir -p $(GOPATH)/src/github.com/$(GH_USER)
-		ln -s $(PREFIX) $(GOPATH)/src/github.com/$(GH_USER)/$(GH_REPO)
 		@echo "Get dependent packages"
 		$(foreach GOPCKG,$(GO_PACKAGES),$(call godeps-get,$(GOPCKG)))
 

@@ -870,7 +870,7 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4ExplicitOutsideContainer
 }
 
 func (s *DockerDaemonSuite) TestDaemonDefaultNetworkInvalidClusterConfig(c *check.C) {
-	testRequires(c, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 
 	// Start daemon without docker0 bridge
 	defaultNetworkBridge := "docker0"
@@ -1032,7 +1032,7 @@ func (s *DockerDaemonSuite) TestDaemonLinksIpTablesRulesWhenLinkAndUnlink(c *che
 }
 
 func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *check.C) {
-	testRequires(c, NativeExecDriver)
+	testRequires(c, DaemonIsLinux)
 
 	if err := s.d.StartWithBusybox("--default-ulimit", "nofile=42:42", "--default-ulimit", "nproc=1024:1024"); err != nil {
 		c.Fatal(err)
@@ -1242,10 +1242,10 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneLogsError(c *check.C) {
 	}
 	id := strings.TrimSpace(out)
 	out, err = s.d.Cmd("logs", id)
-	if err != nil {
-		c.Fatalf("Logs request should be sent and then fail with \"none\" driver")
+	if err == nil {
+		c.Fatalf("Logs should fail with 'none' driver")
 	}
-	if !strings.Contains(out, `Error running logs job: Failed to get logging factory: logger: no log driver named 'none' is registered`) {
+	if !strings.Contains(out, `"logs" command is supported only for "json-file" and "journald" logging drivers (got: none)`) {
 		c.Fatalf("There should be an error about none not being a recognized log driver, got: %s", out)
 	}
 }
@@ -1527,7 +1527,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterCrash(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunContainerWithBridgeNone(c *check.C) {
-	testRequires(c, NativeExecDriver, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	c.Assert(s.d.StartWithBusybox("-b", "none"), check.IsNil)
 
 	out, err := s.d.Cmd("run", "--rm", "busybox", "ip", "l")

@@ -23,13 +23,12 @@ weight = -1
       --default-gateway=""                   Container default gateway IPv4 address
       --default-gateway-v6=""                Container default gateway IPv6 address
       --cluster-store=""                     URL of the distributed storage backend
-      --cluster-advertise=""                 Address of the daemon instance to advertise
+      --cluster-advertise=""                 Address of the daemon instance on the cluster
       --cluster-store-opt=map[]              Set cluster options
       --dns=[]                               DNS server to use
       --dns-opt=[]                           DNS options to use
       --dns-search=[]                        DNS search domains to use
       --default-ulimit=[]                    Set default ulimit settings for containers
-      -e, --exec-driver="native"             Exec driver to use
       --exec-opt=[]                          Set exec driver options
       --exec-root="/var/run/docker"          Root of the Docker execdriver
       --fixed-cidr=""                        IPv4 subnet for fixed IPs
@@ -439,11 +438,6 @@ Currently supported options of `zfs`:
 The Docker daemon uses a specifically built `libcontainer` execution driver as
 its interface to the Linux kernel `namespaces`, `cgroups`, and `SELinux`.
 
-There is still legacy support for the original [LXC userspace tools](
-https://linuxcontainers.org/) via the `lxc` execution driver, however, this is
-not where the primary development of new functionality is taking place.
-Add `-e lxc` to the daemon flags to use the `lxc` execution driver.
-
 ## Options for the native execdriver
 
 You can configure the `native` (libcontainer) execdriver using options specified
@@ -547,13 +541,16 @@ please check the [run](run.md) reference.
 
 ## Nodes discovery
 
-`--cluster-advertise` specifies the 'host:port' combination that this particular
-daemon instance should use when advertising itself to the cluster. The daemon
-is reached by remote hosts on this 'host:port' combination.
+The `--cluster-advertise` option specifies the 'host:port' or `interface:port`
+combination that this particular daemon instance should use when advertising
+itself to the cluster. The daemon is reached by remote hosts through this value.
+If you  specify an interface, make sure it includes the IP address of the actual
+Docker host. For Engine installation created through `docker-machine`, the
+interface is typically `eth1`.
 
 The daemon uses [libkv](https://github.com/docker/libkv/) to advertise
-the node within the cluster.  Some Key/Value backends support mutual
-TLS, and the client TLS settings used by the daemon can be configured
+the node within the cluster. Some key-value backends support mutual
+TLS. To configure the client TLS settings used by the daemon can be configured
 using the `--cluster-store-opt` flag, specifying the paths to PEM encoded
 files. For example:
 

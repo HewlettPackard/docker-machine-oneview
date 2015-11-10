@@ -10,6 +10,7 @@ import (
 	"github.com/docker/machine/libmachine/log"
 	"github.com/docker/machine/libmachine/mcnflag"
 	"github.com/docker/machine/libmachine/state"
+	"github.com/docker/machine/libmachine/version"
 )
 
 var (
@@ -45,16 +46,20 @@ func NewInternalClient(rpcclient *rpc.Client) *InternalClient {
 		RpcClient: rpcclient,
 	}
 }
+
 func NewRpcClientDriver(rawDriverData []byte, driverName string) (*RpcClientDriver, error) {
 	mcnName := ""
 
-	p := localbinary.NewLocalBinaryPlugin(driverName)
+	p, err := localbinary.NewLocalBinaryPlugin(driverName)
+	if err != nil {
+		return nil, err
+	}
 
 	go func() {
 		if err := p.Serve(); err != nil {
-			// If we can't safely load the server, best to just
-			// bail.
-			log.Fatal(err)
+			// TODO: Is this best approach?
+			log.Warn(err)
+			return
 		}
 	}()
 
@@ -89,11 +94,15 @@ func NewRpcClientDriver(rawDriverData []byte, driverName string) (*RpcClientDriv
 		}
 	}(c)
 
-	var version int
-	if err := c.Client.Call("RpcServerDriver.GetVersion", struct{}{}, &version); err != nil {
+	var serverVersion int
+	if err := c.Client.Call("RpcServerDriver.GetVersion", struct{}{}, &serverVersion); err != nil {
 		return nil, err
 	}
-	log.Debug("Using API Version ", version)
+
+	if serverVersion != version.APIVersion {
+		return nil, fmt.Errorf("Driver binary uses an incompatible API version (%d)", serverVersion)
+	}
+	log.Debug("Using API Version ", serverVersion)
 
 	if err := c.SetConfigRaw(rawDriverData); err != nil {
 		return nil, err

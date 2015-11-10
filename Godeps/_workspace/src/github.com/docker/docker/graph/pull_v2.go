@@ -11,7 +11,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/manifest"
+	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/broadcaster"
 	"github.com/docker/docker/pkg/progressreader"
@@ -34,7 +34,7 @@ type v2Puller struct {
 
 func (p *v2Puller) Pull(tag string) (fallback bool, err error) {
 	// TODO(tiborvass): was ReceiveTimeout
-	p.repo, err = NewV2Repository(p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	p.repo, err = newV2Repository(p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		logrus.Warnf("Error getting v2 registry: %v", err)
 		return true, err
@@ -244,7 +244,7 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (tagUpdated 
 	if unverifiedManifest == nil {
 		return false, fmt.Errorf("image manifest does not exist for tag %q", tag)
 	}
-	var verifiedManifest *manifest.Manifest
+	var verifiedManifest *schema1.Manifest
 	verifiedManifest, err = verifyManifest(unverifiedManifest, tag)
 	if err != nil {
 		return false, err
@@ -404,7 +404,7 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (tagUpdated 
 
 	// Check for new tag if no layers downloaded
 	if !tagUpdated {
-		repo, err := p.Get(p.repoInfo.LocalName)
+		repo, err := p.get(p.repoInfo.LocalName)
 		if err != nil {
 			return false, err
 		}
@@ -423,7 +423,7 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (tagUpdated 
 		// use the digest whether we pull by it or not. Unfortunately, the tag
 		// store treats the digest as a separate tag, meaning there may be an
 		// untagged digest image that would seem to be dangling by a user.
-		if err = p.SetDigest(p.repoInfo.LocalName, tag, firstID); err != nil {
+		if err = p.setDigest(p.repoInfo.LocalName, tag, firstID); err != nil {
 			return false, err
 		}
 	} else {
@@ -440,7 +440,7 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (tagUpdated 
 	return tagUpdated, nil
 }
 
-func verifyManifest(signedManifest *manifest.SignedManifest, tag string) (m *manifest.Manifest, err error) {
+func verifyManifest(signedManifest *schema1.SignedManifest, tag string) (m *schema1.Manifest, err error) {
 	// If pull by digest, then verify the manifest digest. NOTE: It is
 	// important to do this first, before any other content validation. If the
 	// digest cannot be verified, don't even bother with those other things.
@@ -464,7 +464,7 @@ func verifyManifest(signedManifest *manifest.SignedManifest, tag string) (m *man
 			return nil, err
 		}
 
-		var verifiedManifest manifest.Manifest
+		var verifiedManifest schema1.Manifest
 		if err = json.Unmarshal(payload, &verifiedManifest); err != nil {
 			return nil, err
 		}
@@ -487,7 +487,7 @@ func verifyManifest(signedManifest *manifest.SignedManifest, tag string) (m *man
 
 // fixManifestLayers removes repeated layers from the manifest and checks the
 // correctness of the parent chain.
-func fixManifestLayers(m *manifest.Manifest) error {
+func fixManifestLayers(m *schema1.Manifest) error {
 	images := make([]*image.Image, len(m.FSLayers))
 	for i := range m.FSLayers {
 		img, err := image.NewImgJSON([]byte(m.History[i].V1Compatibility))
@@ -533,7 +533,7 @@ func fixManifestLayers(m *manifest.Manifest) error {
 // getImageInfos returns an imageinfo struct for every image in the manifest.
 // These objects contain both calculated strongIDs and compatibilityIDs found
 // in v1Compatibility object.
-func (p *v2Puller) getImageInfos(m *manifest.Manifest) ([]contentAddressableDescriptor, error) {
+func (p *v2Puller) getImageInfos(m *schema1.Manifest) ([]contentAddressableDescriptor, error) {
 	imgs := make([]contentAddressableDescriptor, len(m.FSLayers))
 
 	var parent digest.Digest
@@ -570,7 +570,7 @@ func (p *v2Puller) attemptIDReuse(imgs []contentAddressableDescriptor) {
 		idMap[img.compatibilityID] = struct{}{}
 
 		if p.graph.Exists(img.compatibilityID) {
-			if _, err := p.graph.GenerateV1CompatibilityChain(img.compatibilityID); err != nil {
+			if _, err := p.graph.generateV1CompatibilityChain(img.compatibilityID); err != nil {
 				logrus.Debugf("Migration v1Compatibility generation error: %v", err)
 				return
 			}

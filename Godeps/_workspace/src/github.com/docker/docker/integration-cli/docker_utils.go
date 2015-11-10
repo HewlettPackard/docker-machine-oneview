@@ -86,6 +86,15 @@ func init() {
 	dockerBasePath = info.DockerRootDir
 	volumesConfigPath = filepath.Join(dockerBasePath, "volumes")
 	containerStoragePath = filepath.Join(dockerBasePath, "containers")
+	// Make sure in context of daemon, not the local platform. Note we can't
+	// use filepath.FromSlash or ToSlash here as they are a no-op on Unix.
+	if daemonPlatform == "windows" {
+		volumesConfigPath = strings.Replace(volumesConfigPath, `/`, `\`, -1)
+		containerStoragePath = strings.Replace(containerStoragePath, `/`, `\`, -1)
+	} else {
+		volumesConfigPath = strings.Replace(volumesConfigPath, `\`, `/`, -1)
+		containerStoragePath = strings.Replace(containerStoragePath, `\`, `/`, -1)
+	}
 }
 
 // Daemon represents a Docker daemon for the testing framework.
@@ -104,7 +113,6 @@ type Daemon struct {
 	stdout, stderr    io.ReadCloser
 	cmd               *exec.Cmd
 	storageDriver     string
-	execDriver        string
 	wait              chan error
 	userlandProxy     bool
 	useDefaultHost    bool
@@ -146,7 +154,6 @@ func NewDaemon(c *check.C) *Daemon {
 		folder:        daemonFolder,
 		root:          daemonRoot,
 		storageDriver: os.Getenv("DOCKER_GRAPHDRIVER"),
-		execDriver:    os.Getenv("DOCKER_EXECDRIVER"),
 		userlandProxy: userlandProxy,
 	}
 }
@@ -228,9 +235,6 @@ func (d *Daemon) Start(arg ...string) error {
 
 	if d.storageDriver != "" {
 		args = append(args, "--storage-driver", d.storageDriver)
-	}
-	if d.execDriver != "" {
-		args = append(args, "--exec-driver", d.execDriver)
 	}
 
 	args = append(args, arg...)
@@ -386,6 +390,14 @@ out2:
 // Restart will restart the daemon by first stopping it and then starting it.
 func (d *Daemon) Restart(arg ...string) error {
 	d.Stop()
+	// in the case of tests running a user namespace-enabled daemon, we have resolved
+	// d.root to be the actual final path of the graph dir after the "uid.gid" of
+	// remapped root is added--we need to subtract it from the path before calling
+	// start or else we will continue making subdirectories rather than truly restarting
+	// with the same location/root:
+	if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
+		d.root = filepath.Dir(d.root)
+	}
 	return d.Start(arg...)
 }
 
@@ -807,6 +819,17 @@ func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...strin
 	return integration.DockerCmdInDirWithTimeout(dockerBinary, timeout, path, args...)
 }
 
+// find the State.ExitCode in container metadata
+func findContainerExitCode(c *check.C, name string, vargs ...string) string {
+	args := append(vargs, "inspect", "--format='{{ .State.ExitCode }} {{ .State.Error }}'", name)
+	cmd := exec.Command(dockerBinary, args...)
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out)
+	}
+	return out
+}
+
 func findContainerIP(c *check.C, id string, network string) string {
 	out, _ := dockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id)
 	return strings.Trim(out, " \r\n'")
@@ -1226,6 +1249,14 @@ func buildImage(name, dockerfile string, useCache bool, buildFlags ...string) (s
 }
 
 func buildImageFromContext(name string, ctx *FakeContext, useCache bool, buildFlags ...string) (string, error) {
+	id, _, err := buildImageFromContextWithOut(name, ctx, useCache, buildFlags...)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func buildImageFromContextWithOut(name string, ctx *FakeContext, useCache bool, buildFlags ...string) (string, string, error) {
 	args := []string{"build", "-t", name}
 	if !useCache {
 		args = append(args, "--no-cache")
@@ -1236,9 +1267,13 @@ func buildImageFromContext(name string, ctx *FakeContext, useCache bool, buildFl
 	buildCmd.Dir = ctx.Dir
 	out, exitCode, err := runCommandWithOutput(buildCmd)
 	if err != nil || exitCode != 0 {
-		return "", fmt.Errorf("failed to build the image: %s", out)
+		return "", "", fmt.Errorf("failed to build the image: %s", out)
 	}
-	return getIDByName(name)
+	id, err := getIDByName(name)
+	if err != nil {
+		return "", "", err
+	}
+	return id, out, nil
 }
 
 func buildImageFromPath(name, path string, useCache bool, buildFlags ...string) (string, error) {

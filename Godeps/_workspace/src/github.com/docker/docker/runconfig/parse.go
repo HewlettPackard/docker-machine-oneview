@@ -62,7 +62,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flDNSOptions        = opts.NewListOpts(nil)
 		flExtraHosts        = opts.NewListOpts(opts.ValidateExtraHost)
 		flVolumesFrom       = opts.NewListOpts(nil)
-		flLxcOpts           = opts.NewListOpts(nil)
 		flEnvFile           = opts.NewListOpts(nil)
 		flCapAdd            = opts.NewListOpts(nil)
 		flCapDrop           = opts.NewListOpts(nil)
@@ -121,7 +120,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flDNSOptions, []string{"-dns-opt"}, "Set DNS options")
 	cmd.Var(&flExtraHosts, []string{"-add-host"}, "Add a custom host-to-IP mapping (host:ip)")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
-	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "Add custom lxc options")
 	cmd.Var(&flCapAdd, []string{"-cap-add"}, "Add Linux capabilities")
 	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
 	cmd.Var(&flGroupAdd, []string{"-group-add"}, "Add additional groups to join")
@@ -222,12 +220,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	if *flEntrypoint != "" {
 		entrypoint = stringutils.NewStrSlice(*flEntrypoint)
 	}
-
-	lc, err := parseKeyValueOpts(flLxcOpts)
-	if err != nil {
-		return nil, nil, cmd, err
-	}
-	lxcConf := NewLxcConfig(lc)
 
 	var (
 		domainname string
@@ -340,7 +332,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	hostConfig := &HostConfig{
 		Binds:             binds,
 		ContainerIDFile:   *flContainerIDFile,
-		LxcConf:           lxcConf,
 		Memory:            flMemory,
 		MemoryReservation: MemoryReservation,
 		MemorySwap:        memorySwap,
@@ -357,27 +348,32 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		PortBindings:      portBindings,
 		Links:             flLinks.GetAll(),
 		PublishAllPorts:   *flPublishAll,
-		DNS:               flDNS.GetAll(),
-		DNSSearch:         flDNSSearch.GetAll(),
-		DNSOptions:        flDNSOptions.GetAll(),
-		ExtraHosts:        flExtraHosts.GetAll(),
-		VolumesFrom:       flVolumesFrom.GetAll(),
-		NetworkMode:       NetworkMode(*flNetMode),
-		IpcMode:           ipcMode,
-		PidMode:           pidMode,
-		UTSMode:           utsMode,
-		Devices:           deviceMappings,
-		CapAdd:            stringutils.NewStrSlice(flCapAdd.GetAll()...),
-		CapDrop:           stringutils.NewStrSlice(flCapDrop.GetAll()...),
-		GroupAdd:          flGroupAdd.GetAll(),
-		RestartPolicy:     restartPolicy,
-		SecurityOpt:       flSecurityOpt.GetAll(),
-		ReadonlyRootfs:    *flReadonlyRootfs,
-		Ulimits:           flUlimits.GetList(),
-		LogConfig:         LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
-		CgroupParent:      *flCgroupParent,
-		VolumeDriver:      *flVolumeDriver,
-		Isolation:         IsolationLevel(*flIsolation),
+		// Make sure the dns fields are never nil.
+		// New containers don't ever have those fields nil,
+		// but pre created containers can still have those nil values.
+		// See https://github.com/docker/docker/pull/17779
+		// for a more detailed explanation on why we don't want that.
+		DNS:            flDNS.GetAllOrEmpty(),
+		DNSSearch:      flDNSSearch.GetAllOrEmpty(),
+		DNSOptions:     flDNSOptions.GetAllOrEmpty(),
+		ExtraHosts:     flExtraHosts.GetAll(),
+		VolumesFrom:    flVolumesFrom.GetAll(),
+		NetworkMode:    NetworkMode(*flNetMode),
+		IpcMode:        ipcMode,
+		PidMode:        pidMode,
+		UTSMode:        utsMode,
+		Devices:        deviceMappings,
+		CapAdd:         stringutils.NewStrSlice(flCapAdd.GetAll()...),
+		CapDrop:        stringutils.NewStrSlice(flCapDrop.GetAll()...),
+		GroupAdd:       flGroupAdd.GetAll(),
+		RestartPolicy:  restartPolicy,
+		SecurityOpt:    flSecurityOpt.GetAll(),
+		ReadonlyRootfs: *flReadonlyRootfs,
+		Ulimits:        flUlimits.GetList(),
+		LogConfig:      LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
+		CgroupParent:   *flCgroupParent,
+		VolumeDriver:   *flVolumeDriver,
+		Isolation:      IsolationLevel(*flIsolation),
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect

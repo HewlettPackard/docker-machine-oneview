@@ -15,12 +15,15 @@ import (
 )
 
 // createContainerPlatformSpecificSettings performs platform specific container create functionality
-func createContainerPlatformSpecificSettings(container *Container, config *runconfig.Config, hostConfig *runconfig.HostConfig, img *image.Image) error {
-	var name, destination string
+func (daemon *Daemon) createContainerPlatformSpecificSettings(container *Container, config *runconfig.Config, hostConfig *runconfig.HostConfig, img *image.Image) error {
+	if err := daemon.Mount(container); err != nil {
+		return err
+	}
+	defer daemon.Unmount(container)
 
 	for spec := range config.Volumes {
-		name = stringid.GenerateNonCryptoID()
-		destination = filepath.Clean(spec)
+		name := stringid.GenerateNonCryptoID()
+		destination := filepath.Clean(spec)
 
 		// Skip volumes for which we already have something mounted on that
 		// destination because of a --volume-from.
@@ -47,7 +50,7 @@ func createContainerPlatformSpecificSettings(container *Container, config *runco
 			}
 		}
 
-		v, err := container.daemon.createVolume(name, volumeDriver, nil)
+		v, err := daemon.createVolume(name, volumeDriver, nil)
 		if err != nil {
 			return err
 		}

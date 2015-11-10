@@ -3,19 +3,18 @@ package volume
 import (
 	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/server/router/local"
-	"github.com/docker/docker/daemon"
 )
 
-// volumesRouter is a router to talk with the volumes controller
+// volumeRouter is a router to talk with the volumes controller
 type volumeRouter struct {
-	daemon *daemon.Daemon
-	routes []router.Route
+	backend Backend
+	routes  []router.Route
 }
 
-// NewRouter initializes a new volumes router
-func NewRouter(d *daemon.Daemon) router.Router {
+// NewRouter initializes a new volumeRouter
+func NewRouter(b Backend) router.Router {
 	r := &volumeRouter{
-		daemon: d,
+		backend: b,
 	}
 	r.initRoutes()
 	return r

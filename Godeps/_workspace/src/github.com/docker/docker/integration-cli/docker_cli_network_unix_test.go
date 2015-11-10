@@ -643,7 +643,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacInspect(c *check.C) {
 	c.Assert(mac, checker.Equals, "a0:b1:c2:d3:e4:f5")
 }
 
-func (s *DockerSuite) TestInspectApiMultipeNetworks(c *check.C) {
+func (s *DockerSuite) TestInspectApiMultipleNetworks(c *check.C) {
 	dockerCmd(c, "network", "create", "mybridge1")
 	dockerCmd(c, "network", "create", "mybridge2")
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
@@ -732,4 +732,35 @@ func (s *DockerNetworkSuite) TestDockerNetworkMultipleNetworksUngracefulDaemonRe
 	c.Assert(err, checker.IsNil)
 
 	verifyContainerIsConnectedToNetworks(c, s.d, cName, nwList)
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkRunNetByID(c *check.C) {
+	out, _ := dockerCmd(c, "network", "create", "one")
+	dockerCmd(c, "run", "-d", "--net", strings.TrimSpace(out), "busybox", "top")
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	s.d.Start()
+
+	// Run a few containers on host network
+	for i := 0; i < 10; i++ {
+		cName := fmt.Sprintf("hostc-%d", i)
+		out, err := s.d.Cmd("run", "-d", "--name", cName, "--net=host", "--restart=always", "busybox", "top")
+		c.Assert(err, checker.IsNil, check.Commentf(out))
+	}
+
+	// Kill daemon ungracefully and restart
+	if err := s.d.cmd.Process.Kill(); err != nil {
+		c.Fatal(err)
+	}
+	s.d.Restart()
+
+	// make sure all the containers are up and running
+	for i := 0; i < 10; i++ {
+		cName := fmt.Sprintf("hostc-%d", i)
+		runningOut, err := s.d.Cmd("inspect", "--format='{{.State.Running}}'", cName)
+		c.Assert(err, checker.IsNil)
+		c.Assert(strings.TrimSpace(runningOut), checker.Equals, "true")
+	}
 }

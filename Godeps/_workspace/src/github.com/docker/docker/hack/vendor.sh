@@ -13,6 +13,7 @@ clone git github.com/go-check/check 11d3bc7aa68e238947792f30573146a3231fc0f1
 clone git github.com/gorilla/context 14f550f51a
 clone git github.com/gorilla/mux e444e69cbd
 clone git github.com/kr/pty 5cf931ef8f
+clone git github.com/mattn/go-shellwords v1.0.0
 clone git github.com/mattn/go-sqlite3 v1.1.0
 clone git github.com/microsoft/hcsshim de43b42b5ce14dfdcbeedb0628b0032174d89caa
 clone git github.com/mistifyio/go-zfs v2.1.1
@@ -21,7 +22,7 @@ clone git github.com/vdemeester/shakers 3c10293ce22b900c27acad7b28656196fcc2f73b
 clone git golang.org/x/net 3cffabab72adf04f8e3b01c5baf775361837b5fe https://github.com/golang/net.git
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 47edb73dd3e64cfcc04234b073872205cd79694a
+clone git github.com/docker/libnetwork 5305ea570b85d61dd0fd261cd7e1680da1884678
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4
@@ -39,15 +40,17 @@ clone git github.com/hashicorp/consul v0.5.2
 clone git github.com/boltdb/bolt v1.1.0
 
 # get graph and distribution packages
-clone git github.com/docker/distribution 20c4b7a1805a52753dfd593ee1cc35558722a0ce # docker/1.9 branch
+clone git github.com/docker/distribution c6c9194e9c6097f84b0ff468a741086ff7704aa3
 clone git github.com/vbatts/tar-split v0.9.10
 
 clone git github.com/docker/notary 089d8450d8928aa1c58fd03f09cabbde9bcb4590
 clone git github.com/endophage/gotuf 2df1c8e0a7b7e10ae2113bf37aaa1bf1c1de8cc5
-clone git github.com/jfrazelle/go 6e461eb70cb4187b41a84e9a567d7137bdbe0f16
+clone git github.com/jfrazelle/go v1.5.1-1
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
-clone git github.com/opencontainers/runc 6c198ae2d065c37f44316e0de3df7f3b88950923 # libcontainer
+# this runc commit from branch relabel_fix_docker_1.9.1, pls remove it when you
+# update next time
+clone git github.com/opencontainers/runc 1349b37bd56f4f5ce2690b5b2c0f53f88a261c67 # libcontainer
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
 clone git github.com/coreos/go-systemd v3
 clone git github.com/godbus/dbus v2

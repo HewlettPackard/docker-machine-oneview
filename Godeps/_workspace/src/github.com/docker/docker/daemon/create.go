@@ -1,14 +1,10 @@
 package daemon
 
 import (
-	"strings"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
@@ -31,27 +27,17 @@ func (daemon *Daemon) ContainerCreate(params *ContainerCreateConfig) (types.Cont
 
 	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config)
 	if err != nil {
-		return types.ContainerCreateResponse{"", warnings}, err
+		return types.ContainerCreateResponse{ID: "", Warnings: warnings}, err
 	}
 
 	daemon.adaptContainerSettings(params.HostConfig, params.AdjustCPUShares)
 
 	container, err := daemon.create(params)
 	if err != nil {
-		if daemon.Graph().IsNotExist(err, params.Config.Image) {
-			if strings.Contains(params.Config.Image, "@") {
-				return types.ContainerCreateResponse{"", warnings}, derr.ErrorCodeNoSuchImageHash.WithArgs(params.Config.Image)
-			}
-			img, tag := parsers.ParseRepositoryTag(params.Config.Image)
-			if tag == "" {
-				tag = tags.DefaultTag
-			}
-			return types.ContainerCreateResponse{"", warnings}, derr.ErrorCodeNoSuchImageTag.WithArgs(img, tag)
-		}
-		return types.ContainerCreateResponse{"", warnings}, err
+		return types.ContainerCreateResponse{ID: "", Warnings: warnings}, daemon.graphNotExistToErrcode(params.Config.Image, err)
 	}
 
-	return types.ContainerCreateResponse{container.ID, warnings}, nil
+	return types.ContainerCreateResponse{ID: container.ID, Warnings: warnings}, nil
 }
 
 // Create creates a new container from the given configuration with a given name.
@@ -109,17 +95,13 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, re
 	}
 	defer func() {
 		if retErr != nil {
-			if err := container.removeMountPoints(true); err != nil {
+			if err := daemon.removeMountPoints(container, true); err != nil {
 				logrus.Error(err)
 			}
 		}
 	}()
-	if err := container.Mount(); err != nil {
-		return nil, err
-	}
-	defer container.Unmount()
 
-	if err := createContainerPlatformSpecificSettings(container, params.Config, params.HostConfig, img); err != nil {
+	if err := daemon.createContainerPlatformSpecificSettings(container, params.Config, params.HostConfig, img); err != nil {
 		return nil, err
 	}
 
@@ -127,7 +109,7 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, re
 		logrus.Errorf("Error saving new container to disk: %v", err)
 		return nil, err
 	}
-	container.logEvent("create")
+	daemon.LogContainerEvent(container, "create")
 	return container, nil
 }
 

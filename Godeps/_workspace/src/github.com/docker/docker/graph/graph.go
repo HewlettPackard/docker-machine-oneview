@@ -17,11 +17,12 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -100,7 +101,7 @@ type Graph struct {
 	idIndex          *truncindex.TruncIndex
 	driver           graphdriver.Driver
 	imagesMutex      sync.Mutex
-	imageMutex       imageMutex // protect images in driver.
+	imageMutex       locker.Locker // protect images in driver.
 	retained         *retainedLayers
 	tarSplitDisabled bool
 	uidMaps          []idtools.IDMap
@@ -122,10 +123,10 @@ const (
 )
 
 var (
-	// ErrDigestNotSet is used when request the digest for a layer
+	// errDigestNotSet is used when request the digest for a layer
 	// but the layer has no digest value or content to compute the
 	// the digest.
-	ErrDigestNotSet = errors.New("digest is not set for layer")
+	errDigestNotSet = errors.New("digest is not set for layer")
 )
 
 // NewGraph instantiates a new graph at the given root path in the filesystem.
@@ -182,7 +183,8 @@ func (graph *Graph) restore() error {
 		if graph.driver.Exists(id) {
 			img, err := graph.loadImage(id)
 			if err != nil {
-				return err
+				logrus.Warnf("ignoring image %s, it could not be restored: %v", id, err)
+				continue
 			}
 			graph.imageMutex.Lock(img.Parent)
 			graph.parentRefs[img.Parent]++
@@ -217,7 +219,10 @@ func (graph *Graph) Exists(id string) bool {
 func (graph *Graph) Get(name string) (*image.Image, error) {
 	id, err := graph.idIndex.Get(name)
 	if err != nil {
-		return nil, fmt.Errorf("could not find image: %v", err)
+		if err == truncindex.ErrNotExist {
+			return nil, fmt.Errorf("image %s does not exist", name)
+		}
+		return nil, err
 	}
 	img, err := graph.loadImage(id)
 	if err != nil {
@@ -247,7 +252,7 @@ func (graph *Graph) Create(layerData io.Reader, containerID, containerImage, com
 		ID:            stringid.GenerateRandomID(),
 		Comment:       comment,
 		Created:       time.Now().UTC(),
-		DockerVersion: dockerversion.VERSION,
+		DockerVersion: dockerversion.Version,
 		Author:        author,
 		Config:        config,
 		Architecture:  runtime.GOARCH,
@@ -363,7 +368,7 @@ func createRootFilesystemInDriver(graph *Graph, id, parent string) error {
 // TempLayerArchive creates a temporary archive of the given image's filesystem layer.
 //   The archive is stored on disk and will be automatically deleted as soon as has been read.
 //   If output is not nil, a human-readable progress bar will be written to it.
-func (graph *Graph) TempLayerArchive(id string, sf *streamformatter.StreamFormatter, output io.Writer) (*archive.TempArchive, error) {
+func (graph *Graph) tempLayerArchive(id string, sf *streamformatter.StreamFormatter, output io.Writer) (*archive.TempArchive, error) {
 	image, err := graph.Get(id)
 	if err != nil {
 		return nil, err
@@ -373,7 +378,7 @@ func (graph *Graph) TempLayerArchive(id string, sf *streamformatter.StreamFormat
 		return nil, err
 	}
 	defer os.RemoveAll(tmp)
-	a, err := graph.TarLayer(image)
+	a, err := graph.tarLayer(image)
 	if err != nil {
 		return nil, err
 	}
@@ -500,9 +505,9 @@ func (graph *Graph) Release(sessionID string, layerIDs ...string) {
 	graph.retained.Delete(sessionID, layerIDs)
 }
 
-// Heads returns all heads in the graph, keyed by id.
+// heads returns all heads in the graph, keyed by id.
 // A head is an image which is not the parent of another image in the graph.
-func (graph *Graph) Heads() map[string]*image.Image {
+func (graph *Graph) heads() map[string]*image.Image {
 	heads := make(map[string]*image.Image)
 	graph.walkAll(func(image *image.Image) {
 		// if it has no children, then it's not a parent, so it's an head
@@ -513,11 +518,11 @@ func (graph *Graph) Heads() map[string]*image.Image {
 	return heads
 }
 
-// TarLayer returns a tar archive of the image's filesystem layer.
-func (graph *Graph) TarLayer(img *image.Image) (arch io.ReadCloser, err error) {
+// tarLayer returns a tar archive of the image's filesystem layer.
+func (graph *Graph) tarLayer(img *image.Image) (arch io.ReadCloser, err error) {
 	rdr, err := graph.assembleTarLayer(img)
 	if err != nil {
-		logrus.Debugf("[graph] TarLayer with traditional differ: %s", img.ID)
+		logrus.Debugf("[graph] tarLayer with traditional differ: %s", img.ID)
 		return graph.driver.Diff(img.ID, img.Parent)
 	}
 	return rdr, nil
@@ -593,8 +598,8 @@ func (graph *Graph) saveSize(root string, size int64) error {
 	return nil
 }
 
-// SetLayerDigest sets the digest for the image layer to the provided value.
-func (graph *Graph) SetLayerDigest(id string, dgst digest.Digest) error {
+// setLayerDigestWithLock sets the digest for the image layer to the provided value.
+func (graph *Graph) setLayerDigestWithLock(id string, dgst digest.Digest) error {
 	graph.imageMutex.Lock(id)
 	defer graph.imageMutex.Unlock(id)
 
@@ -608,8 +613,8 @@ func (graph *Graph) setLayerDigest(id string, dgst digest.Digest) error {
 	return nil
 }
 
-// GetLayerDigest gets the digest for the provide image layer id.
-func (graph *Graph) GetLayerDigest(id string) (digest.Digest, error) {
+// getLayerDigestWithLock gets the digest for the provide image layer id.
+func (graph *Graph) getLayerDigestWithLock(id string) (digest.Digest, error) {
 	graph.imageMutex.Lock(id)
 	defer graph.imageMutex.Unlock(id)
 
@@ -621,44 +626,31 @@ func (graph *Graph) getLayerDigest(id string) (digest.Digest, error) {
 	cs, err := ioutil.ReadFile(filepath.Join(root, digestFileName))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", ErrDigestNotSet
+			return "", errDigestNotSet
 		}
 		return "", err
 	}
 	return digest.ParseDigest(string(cs))
 }
 
-// SetV1CompatibilityConfig stores the v1Compatibility JSON data associated
+// setV1CompatibilityConfig stores the v1Compatibility JSON data associated
 // with the image in the manifest to the disk
-func (graph *Graph) SetV1CompatibilityConfig(id string, data []byte) error {
-	graph.imageMutex.Lock(id)
-	defer graph.imageMutex.Unlock(id)
-
-	return graph.setV1CompatibilityConfig(id, data)
-}
 func (graph *Graph) setV1CompatibilityConfig(id string, data []byte) error {
 	root := graph.imageRoot(id)
 	return ioutil.WriteFile(filepath.Join(root, v1CompatibilityFileName), data, 0600)
 }
 
-// GetV1CompatibilityConfig reads the v1Compatibility JSON data for the image
+// getV1CompatibilityConfig reads the v1Compatibility JSON data for the image
 // from the disk
-func (graph *Graph) GetV1CompatibilityConfig(id string) ([]byte, error) {
-	graph.imageMutex.Lock(id)
-	defer graph.imageMutex.Unlock(id)
-
-	return graph.getV1CompatibilityConfig(id)
-}
-
 func (graph *Graph) getV1CompatibilityConfig(id string) ([]byte, error) {
 	root := graph.imageRoot(id)
 	return ioutil.ReadFile(filepath.Join(root, v1CompatibilityFileName))
 }
 
-// GenerateV1CompatibilityChain makes sure v1Compatibility JSON data exists
+// generateV1CompatibilityChain makes sure v1Compatibility JSON data exists
 // for the image. If it doesn't it generates and stores it for the image and
 // all of it's parents based on the image config JSON.
-func (graph *Graph) GenerateV1CompatibilityChain(id string) ([]byte, error) {
+func (graph *Graph) generateV1CompatibilityChain(id string) ([]byte, error) {
 	graph.imageMutex.Lock(id)
 	defer graph.imageMutex.Unlock(id)
 
@@ -676,7 +668,7 @@ func (graph *Graph) GenerateV1CompatibilityChain(id string) ([]byte, error) {
 	img.ID = strings.TrimPrefix(img.ID, digestPrefix)
 
 	if img.Parent != "" {
-		parentConfig, err := graph.GenerateV1CompatibilityChain(img.Parent)
+		parentConfig, err := graph.generateV1CompatibilityChain(img.Parent)
 		if err != nil {
 			return nil, err
 		}
@@ -696,18 +688,6 @@ func (graph *Graph) GenerateV1CompatibilityChain(id string) ([]byte, error) {
 		return nil, err
 	}
 	return json, nil
-}
-
-// RawJSON returns the JSON representation for an image as a byte array.
-func (graph *Graph) RawJSON(id string) ([]byte, error) {
-	root := graph.imageRoot(id)
-
-	buf, err := ioutil.ReadFile(jsonPath(root))
-	if err != nil {
-		return nil, fmt.Errorf("Failed to read json for image %s: %s", id, err)
-	}
-
-	return buf, nil
 }
 
 func jsonPath(root string) string {

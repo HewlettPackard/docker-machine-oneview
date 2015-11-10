@@ -3,13 +3,13 @@ package daemon
 import (
 	"fmt"
 	"os"
-	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	// register the windows graph driver
 	_ "github.com/docker/docker/daemon/graphdriver/windows"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
 )
@@ -62,21 +62,15 @@ func checkConfigOptions(config *Config) error {
 
 // checkSystem validates platform-specific requirements
 func checkSystem() error {
-	var dwVersion uint32
-
-	// TODO Windows. May need at some point to ensure have elevation and
-	// possibly LocalSystem.
-
 	// Validate the OS version. Note that docker.exe must be manifested for this
 	// call to return the correct version.
-	dwVersion, err := syscall.GetVersion()
+	osv, err := system.GetOSVersion()
 	if err != nil {
-		return fmt.Errorf("Failed to call GetVersion()")
+		return err
 	}
-	if int(dwVersion&0xFF) < 10 {
+	if osv.MajorVersion < 10 {
 		return fmt.Errorf("This version of Windows does not support the docker daemon")
 	}
-
 	return nil
 }
 
@@ -153,4 +147,27 @@ func (daemon *Daemon) newBaseContainer(id string) *Container {
 
 func (daemon *Daemon) cleanupMounts() error {
 	return nil
+}
+
+// conditionalMountOnStart is a platform specific helper function during the
+// container start to call mount.
+func (daemon *Daemon) conditionalMountOnStart(container *Container) error {
+	// We do not mount if a Hyper-V container
+	if !container.hostConfig.Isolation.IsHyperV() {
+		if err := daemon.Mount(container); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// conditionalUnmountOnCleanup is a platform specific helper function called
+// during the cleanup of a container to unmount.
+func (daemon *Daemon) conditionalUnmountOnCleanup(container *Container) {
+	// We do not unmount if a Hyper-V container
+	if !container.hostConfig.Isolation.IsHyperV() {
+		if err := daemon.Unmount(container); err != nil {
+			logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
+		}
+	}
 }

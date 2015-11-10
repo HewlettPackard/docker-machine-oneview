@@ -10,7 +10,7 @@ import (
 )
 
 // Context is a generic key value pair that allows
-// arbatrary data to be sent
+// arbitrary data to be sent
 type Context map[string]string
 
 // Define error messages
@@ -50,15 +50,6 @@ type Info interface {
 type Terminal interface {
 	io.Closer
 	Resize(height, width int) error
-}
-
-// ExitStatus provides exit reasons for a container.
-type ExitStatus struct {
-	// The exit code with which the container exited.
-	ExitCode int
-
-	// Whether the container encountered an OOM.
-	OOMKilled bool
 }
 
 // Driver is an interface for drivers to implement
@@ -119,13 +110,6 @@ type ResourceStats struct {
 	Read        time.Time `json:"read"`
 	MemoryLimit int64     `json:"memory_limit"`
 	SystemUsage uint64    `json:"system_usage"`
-}
-
-// User contains the uid and gid representing a Unix user
-// TODO Windows: Factor out User
-type User struct {
-	UID int `json:"root_uid"`
-	GID int `json:"root_gid"`
 }
 
 // ProcessConfig describes a process that will be run inside a container.

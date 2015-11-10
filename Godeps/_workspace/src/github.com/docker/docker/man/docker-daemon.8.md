@@ -20,7 +20,6 @@ docker-daemon - Enable daemon mode
 [**--dns**[=*[]*]]
 [**--dns-opt**[=*[]*]]
 [**--dns-search**[=*[]*]]
-[**-e**|**--exec-driver**[=*native*]]
 [**--exec-opt**[=*[]*]]
 [**--exec-root**[=*/var/run/docker*]]
 [**--fixed-cidr**[=*FIXED-CIDR*]]
@@ -81,8 +80,9 @@ format.
   URL of the distributed storage backend
 
 **--cluster-advertise**=""
-  Specifies the 'host:port' combination that this particular daemon instance should use when advertising
-  itself to the cluster. The daemon is reached by remote hosts on this 'host:port' combination.
+  Specifies the 'host:port' or `interface:port` combination that this particular
+  daemon instance should use when advertising itself to the cluster. The daemon
+  is reached through this value.
 
 **--cluster-store-opt**=""
   Specifies options for the Key/Value store.
@@ -110,9 +110,6 @@ format.
 
 **--dns-search**=[]
   DNS search domains to use.
-
-**-e**, **--exec-driver**=""
-  Force Docker to use specific exec driver. Default is `native`.
 
 **--exec-opt**=[]
   Set exec driver options. See EXEC DRIVER OPTIONS.

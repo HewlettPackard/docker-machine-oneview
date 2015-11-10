@@ -12,8 +12,8 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/dockerversion"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
@@ -126,10 +126,6 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 	warnings, err := daemon.verifyExperimentalContainerSettings(hostConfig, config)
 	if err != nil {
 		return warnings, err
-	}
-
-	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
-		return warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
 	}
 
 	// memory subsystem checks and adjustments
@@ -283,7 +279,7 @@ func migrateIfDownlevel(driver graphdriver.Driver, root string) error {
 }
 
 func configureSysInit(config *Config, rootUID, rootGID int) (string, error) {
-	localCopy := filepath.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", dockerversion.VERSION))
+	localCopy := filepath.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", dockerversion.Version))
 	sysInitPath := utils.DockerInitPath(localCopy)
 	if sysInitPath == "" {
 		return "", fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See https://docs.docker.com/project/set-up-dev-env/ for official build instructions.")
@@ -333,11 +329,11 @@ func (daemon *Daemon) networkOptions(dconfig *Config) ([]nwconfig.Option, error)
 
 	if strings.TrimSpace(dconfig.ClusterStore) != "" {
 		kv := strings.Split(dconfig.ClusterStore, "://")
-		if len(kv) < 2 {
+		if len(kv) != 2 {
 			return nil, fmt.Errorf("kv store daemon config must be of the form KV-PROVIDER://KV-URL")
 		}
 		options = append(options, nwconfig.OptionKVProvider(kv[0]))
-		options = append(options, nwconfig.OptionKVProviderURL(strings.Join(kv[1:], "://")))
+		options = append(options, nwconfig.OptionKVProviderURL(kv[1]))
 	}
 	if len(dconfig.ClusterOpts) > 0 {
 		options = append(options, nwconfig.OptionKVOpts(dconfig.ClusterOpts))
@@ -607,6 +603,20 @@ func (daemon *Daemon) newBaseContainer(id string) *Container {
 		},
 		Volumes:   make(map[string]string),
 		VolumesRW: make(map[string]bool),
+	}
+}
+
+// conditionalMountOnStart is a platform specific helper function during the
+// container start to call mount.
+func (daemon *Daemon) conditionalMountOnStart(container *Container) error {
+	return daemon.Mount(container)
+}
+
+// conditionalUnmountOnCleanup is a platform specific helper function called
+// during the cleanup of a container to unmount.
+func (daemon *Daemon) conditionalUnmountOnCleanup(container *Container) {
+	if err := daemon.Unmount(container); err != nil {
+		logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
 	}
 }
 

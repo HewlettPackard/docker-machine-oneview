@@ -166,7 +166,7 @@ func TestLoadWithVolume(t *testing.T) {
 "HostnamePath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hostname",
 "HostsPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hosts",
 "LogPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e-json.log",
-"Name":"/ubuntu","Driver":"aufs","ExecDriver":"native-0.2","MountLabel":"","ProcessLabel":"","AppArmorProfile":"","RestartCount":0,
+"Name":"/ubuntu","Driver":"aufs","MountLabel":"","ProcessLabel":"","AppArmorProfile":"","RestartCount":0,
 "UpdateDns":false,"Volumes":{"/vol1":"%s"},"VolumesRW":{"/vol1":true},"AppliedVolumesFrom":null}`
 
 	cfg := fmt.Sprintf(config, vfsPath)
@@ -174,7 +174,7 @@ func TestLoadWithVolume(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hostConfig := `{"Binds":[],"ContainerIDFile":"","LxcConf":[],"Memory":0,"MemorySwap":0,"CpuShares":0,"CpusetCpus":"",
+	hostConfig := `{"Binds":[],"ContainerIDFile":"","Memory":0,"MemorySwap":0,"CpuShares":0,"CpusetCpus":"",
 "Privileged":false,"PortBindings":{},"Links":null,"PublishAllPorts":false,"Dns":null,"DnsOptions":null,"DnsSearch":null,"ExtraHosts":null,"VolumesFrom":null,
 "Devices":[],"NetworkMode":"bridge","IpcMode":"","PidMode":"","CapAdd":null,"CapDrop":null,"RestartPolicy":{"Name":"no","MaximumRetryCount":0},
 "SecurityOpt":null,"ReadonlyRootfs":false,"Ulimits":null,"LogConfig":{"Type":"","Config":null},"CgroupParent":""}`
@@ -182,7 +182,7 @@ func TestLoadWithVolume(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon, err := initDaemonForVolumesTest(tmp)
+	daemon, err := initDaemonWithVolumeStore(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,14 +255,14 @@ func TestLoadWithBindMount(t *testing.T) {
 "HostnamePath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hostname",
 "HostsPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hosts",
 "LogPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e-json.log",
-"Name":"/ubuntu","Driver":"aufs","ExecDriver":"native-0.2","MountLabel":"","ProcessLabel":"","AppArmorProfile":"","RestartCount":0,
+"Name":"/ubuntu","Driver":"aufs","MountLabel":"","ProcessLabel":"","AppArmorProfile":"","RestartCount":0,
 "UpdateDns":false,"Volumes":{"/vol1": "/vol1"},"VolumesRW":{"/vol1":true},"AppliedVolumesFrom":null}`
 
 	if err = ioutil.WriteFile(filepath.Join(containerPath, "config.json"), []byte(config), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	hostConfig := `{"Binds":["/vol1:/vol1"],"ContainerIDFile":"","LxcConf":[],"Memory":0,"MemorySwap":0,"CpuShares":0,"CpusetCpus":"",
+	hostConfig := `{"Binds":["/vol1:/vol1"],"ContainerIDFile":"","Memory":0,"MemorySwap":0,"CpuShares":0,"CpusetCpus":"",
 "Privileged":false,"PortBindings":{},"Links":null,"PublishAllPorts":false,"Dns":null,"DnsOptions":null,"DnsSearch":null,"ExtraHosts":null,"VolumesFrom":null,
 "Devices":[],"NetworkMode":"bridge","IpcMode":"","PidMode":"","CapAdd":null,"CapDrop":null,"RestartPolicy":{"Name":"no","MaximumRetryCount":0},
 "SecurityOpt":null,"ReadonlyRootfs":false,"Ulimits":null,"LogConfig":{"Type":"","Config":null},"CgroupParent":""}`
@@ -270,7 +270,7 @@ func TestLoadWithBindMount(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon, err := initDaemonForVolumesTest(tmp)
+	daemon, err := initDaemonWithVolumeStore(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -346,14 +346,14 @@ func TestLoadWithVolume17RC(t *testing.T) {
 "HostnamePath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hostname",
 "HostsPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hosts",
 "LogPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e-json.log",
-"Name":"/ubuntu","Driver":"aufs","ExecDriver":"native-0.2","MountLabel":"","ProcessLabel":"","AppArmorProfile":"","RestartCount":0,
+"Name":"/ubuntu","Driver":"aufs","MountLabel":"","ProcessLabel":"","AppArmorProfile":"","RestartCount":0,
 "UpdateDns":false,"MountPoints":{"/vol1":{"Name":"6a3c03fc4a4e588561a543cc3bdd50089e27bd11bbb0e551e19bf735e2514101","Destination":"/vol1","Driver":"local","RW":true,"Source":"","Relabel":""}},"AppliedVolumesFrom":null}`
 
 	if err = ioutil.WriteFile(filepath.Join(containerPath, "config.json"), []byte(config), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	hostConfig := `{"Binds":[],"ContainerIDFile":"","LxcConf":[],"Memory":0,"MemorySwap":0,"CpuShares":0,"CpusetCpus":"",
+	hostConfig := `{"Binds":[],"ContainerIDFile":"","Memory":0,"MemorySwap":0,"CpuShares":0,"CpusetCpus":"",
 "Privileged":false,"PortBindings":{},"Links":null,"PublishAllPorts":false,"Dns":null,"DnsOptions":null,"DnsSearch":null,"ExtraHosts":null,"VolumesFrom":null,
 "Devices":[],"NetworkMode":"bridge","IpcMode":"","PidMode":"","CapAdd":null,"CapDrop":null,"RestartPolicy":{"Name":"no","MaximumRetryCount":0},
 "SecurityOpt":null,"ReadonlyRootfs":false,"Ulimits":null,"LogConfig":{"Type":"","Config":null},"CgroupParent":""}`
@@ -361,7 +361,7 @@ func TestLoadWithVolume17RC(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon, err := initDaemonForVolumesTest(tmp)
+	daemon, err := initDaemonWithVolumeStore(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -450,7 +450,7 @@ func TestRemoveLocalVolumesFollowingSymlinks(t *testing.T) {
 "HostnamePath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hostname",
 "HostsPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hosts",
 "LogPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e-json.log",
-"Name":"/ubuntu","Driver":"aufs","ExecDriver":"native-0.2","MountLabel":"","ProcessLabel":"","AppArmorProfile":"","RestartCount":0,
+"Name":"/ubuntu","Driver":"aufs","MountLabel":"","ProcessLabel":"","AppArmorProfile":"","RestartCount":0,
 "UpdateDns":false,"Volumes":{"/vol1":"%s"},"VolumesRW":{"/vol1":true},"AppliedVolumesFrom":null}`
 
 	cfg := fmt.Sprintf(config, vfsPath)
@@ -458,7 +458,7 @@ func TestRemoveLocalVolumesFollowingSymlinks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hostConfig := `{"Binds":[],"ContainerIDFile":"","LxcConf":[],"Memory":0,"MemorySwap":0,"CpuShares":0,"CpusetCpus":"",
+	hostConfig := `{"Binds":[],"ContainerIDFile":"","Memory":0,"MemorySwap":0,"CpuShares":0,"CpusetCpus":"",
 "Privileged":false,"PortBindings":{},"Links":null,"PublishAllPorts":false,"Dns":null,"DnsOptions":null,"DnsSearch":null,"ExtraHosts":null,"VolumesFrom":null,
 "Devices":[],"NetworkMode":"bridge","IpcMode":"","PidMode":"","CapAdd":null,"CapDrop":null,"RestartPolicy":{"Name":"no","MaximumRetryCount":0},
 "SecurityOpt":null,"ReadonlyRootfs":false,"Ulimits":null,"LogConfig":{"Type":"","Config":null},"CgroupParent":""}`
@@ -466,7 +466,7 @@ func TestRemoveLocalVolumesFollowingSymlinks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon, err := initDaemonForVolumesTest(tmp)
+	daemon, err := initDaemonWithVolumeStore(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -502,7 +502,7 @@ func TestRemoveLocalVolumesFollowingSymlinks(t *testing.T) {
 	}
 }
 
-func initDaemonForVolumesTest(tmp string) (*Daemon, error) {
+func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
 	daemon := &Daemon{
 		repository: tmp,
 		root:       tmp,
@@ -547,5 +547,30 @@ func TestParseSecurityOpt(t *testing.T) {
 	config.SecurityOpt = []string{"test"}
 	if err := parseSecurityOpt(container, config); err == nil {
 		t.Fatal("Expected parseSecurityOpt error, got nil")
+	}
+}
+
+func TestNetworkOptions(t *testing.T) {
+	daemon := &Daemon{}
+	dconfigCorrect := &Config{
+		CommonConfig: CommonConfig{
+			DefaultNetwork:   "netPlugin:mynet:dev",
+			ClusterStore:     "consul://localhost:8500",
+			ClusterAdvertise: "192.168.0.1:8000",
+		},
+	}
+
+	if _, err := daemon.networkOptions(dconfigCorrect); err != nil {
+		t.Fatalf("Expect networkOptions sucess, got error: %v", err)
+	}
+
+	dconfigWrong := &Config{
+		CommonConfig: CommonConfig{
+			ClusterStore: "consul://localhost:8500://test://bbb",
+		},
+	}
+
+	if _, err := daemon.networkOptions(dconfigWrong); err == nil {
+		t.Fatalf("Expected networkOptions error, got nil")
 	}
 }

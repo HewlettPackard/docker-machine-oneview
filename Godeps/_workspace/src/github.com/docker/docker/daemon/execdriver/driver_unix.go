@@ -100,7 +100,6 @@ type Command struct {
 	GIDMapping         []idtools.IDMap   `json:"gidmapping"`
 	GroupAdd           []string          `json:"group_add"`
 	Ipc                *Ipc              `json:"ipc"`
-	LxcConfig          []string          `json:"lxc_config"`
 	Pid                *Pid              `json:"pid"`
 	ReadonlyRootfs     bool              `json:"readonly_rootfs"`
 	RemappedRoot       *User             `json:"remap_root"`
@@ -256,4 +255,19 @@ func Stats(containerDir string, containerMemoryLimit int64, machineMemory int64)
 		Read:        now,
 		MemoryLimit: memoryLimit,
 	}, nil
+}
+
+// User contains the uid and gid representing a Unix user
+type User struct {
+	UID int `json:"root_uid"`
+	GID int `json:"root_gid"`
+}
+
+// ExitStatus provides exit reasons for a container.
+type ExitStatus struct {
+	// The exit code with which the container exited.
+	ExitCode int
+
+	// Whether the container encountered an OOM.
+	OOMKilled bool
 }

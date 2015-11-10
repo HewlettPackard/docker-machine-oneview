@@ -234,6 +234,11 @@ func includeContainerInList(container *Container, ctx *listContext) iterationAct
 		return excludeContainer
 	}
 
+	// Do not include container if the isolation mode doesn't match
+	if excludeContainer == excludeByIsolation(container, ctx) {
+		return excludeContainer
+	}
+
 	// Do not include container if it's in the list before the filter container.
 	// Set the filter container to nil to include the rest of containers after this one.
 	if ctx.beforeContainer != nil {
@@ -369,7 +374,7 @@ func (daemon *Daemon) transformContainer(container *Container, ctx *listContext)
 	}
 
 	if ctx.Size {
-		sizeRw, sizeRootFs := container.getSize()
+		sizeRw, sizeRootFs := daemon.getSize(container)
 		newC.SizeRw = sizeRw
 		newC.SizeRootFs = sizeRootFs
 	}

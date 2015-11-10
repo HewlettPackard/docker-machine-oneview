@@ -249,7 +249,7 @@ func (d *Driver) Create() error {
 		// make sure vm is stopped
 		_ = d.vbm("controlvm", name, "poweroff")
 
-		diskInfo, err := d.getVMDiskInfo()
+		diskInfo, err := d.getVMDiskInfo(name)
 		if err != nil {
 			return err
 		}
@@ -263,7 +263,7 @@ func (d *Driver) Create() error {
 		}
 
 		log.Debugf("Importing VM settings...")
-		vmInfo, err := d.getVMInfo()
+		vmInfo, err := d.getVMInfo(name)
 		if err != nil {
 			return err
 		}
@@ -672,7 +672,7 @@ func (d *Driver) setupHostOnlyNetwork(machineName string) error {
 		return err
 	}
 
-	dhcpAddr, err := getRandomIPinSubnet(network.IP)
+	dhcpAddr, err := getRandomIPinSubnet(ip)
 	if err != nil {
 		return err
 	}
