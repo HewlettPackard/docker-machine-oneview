@@ -92,7 +92,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.IntFlag{
 			Name:   "oneview-ov-apiversion",
 			Usage:  "Force api version to an older release, ie; 201",
-			Value:  1,
+			Value:  201,
 			EnvVar: "ONEVIEW_OV_APIVERSION",
 		},
 		mcnflag.StringFlag{
@@ -122,7 +122,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.IntFlag{
 			Name:   "oneview-icsp-apiversion",
 			Usage:  "Force api version to an older release, ie; 200",
-			Value:  1,
+			Value:  200,
 			EnvVar: "ONEVIEW_ICSP_APIVERSION",
 		},
 		mcnflag.BoolFlag{
@@ -282,7 +282,7 @@ func (d *Driver) PreCreateCheck() (err error) {
 		return err
 	}
 	if ovVersion.CurrentVersion <= 0 {
-		return fmt.Errorf("Unable to get a valid version from OneView,  %+v\n", ovVersion)
+		return fmt.Errorf("unable to get a valid version from oneview: %+v", ovVersion)
 	}
 	// verify you can connect to icsp
 	icspVersion, err := d.ClientICSP.GetAPIVersion()
@@ -290,7 +290,7 @@ func (d *Driver) PreCreateCheck() (err error) {
 		return err
 	}
 	if icspVersion.CurrentVersion <= 0 {
-		return fmt.Errorf("Unable to get a valid version from ICsp,  %+v\n", icspVersion)
+		return fmt.Errorf("unable to get a valid version from icsp: %+v", icspVersion)
 	}
 	return nil
 }
