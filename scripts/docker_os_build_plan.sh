@@ -55,6 +55,9 @@ ${DOCKER_PROXY}
 EOF
 fi
 
+# give ansible ssh sudo ability to execute without tty
+sed -i 's/.*Defaults.*requiretty/\#Defaults requiretty/g' /etc/sudoers
+
 # give sudoers access
 cat >> "/etc/sudoers.d/90-${DOCKER_USER}" << SUDOERS_EOF
 # User rules for icsp docker user
