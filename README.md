@@ -1,3 +1,7 @@
+# THIS REPOSITORY IS DEPRECATED
+
+HPE OneView has other tools for automating the provisioning of physical infrastructure on-demand such as Ansible, Chef, Puppet, and others. More information on these tools can be found at [hpe.com/developers/oneview](https://hpe.com/developers/oneview) or in the [HewlettPackard](https://github.com/hewlettpackard) organization. These tools have integrations with Docker. This combination will yield a more sustainable and scalable solution than the HPE Docker Machine OneView plugin.
+
 # HPE Docker Machine OneView plugin
 
 [![Build Status](https://travis-ci.org/HewlettPackard/docker-machine-oneview.svg?branch=master)](https://travis-ci.org/HewlettPackard/docker-machine-oneview)
