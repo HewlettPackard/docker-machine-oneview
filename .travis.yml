@@ -3,7 +3,7 @@ go:
 - 1.6
 install:
 - go get github.com/mattn/goveralls
-- go get -u github.com/golang/lint/golint
+- go get -u golang.org/x/lint/golint
 - go get -u github.com/Masterminds/glide
 - go get -u golang.org/x/tools/cover
 - go get -u github.com/mattn/goveralls
